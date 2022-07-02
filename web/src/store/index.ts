@@ -7,7 +7,7 @@ export interface StoreState {
   doorName: StringField;
   passcode: StringField;
   autolockInterval: NumberField;
-  itemFields: StringField[];
+  itemFields: { name: StringField; metadata?: StringField; remove?: boolean }[];
   groupFields: { name: StringField; grade: NumberField }[];
   interactDistance: NumberField;
   lockSound: StringField;
@@ -17,6 +17,7 @@ export interface StoreState {
     double: boolean;
     automatic: boolean;
     lockpick: boolean;
+    hideUi: boolean;
   };
 }
 
@@ -30,7 +31,7 @@ interface StateSetters {
   setAutolockInterval: (value: StoreState['autolockInterval']) => void;
   setItemFields: (fn: (state: StoreState['itemFields']) => StoreState['itemFields']) => void;
   setGroupFields: (fn: (state: StoreState['groupFields']) => StoreState['groupFields']) => void;
-  toggleCheckbox: (type: 'locked' | 'double' | 'automatic' | 'lockpick') => void;
+  toggleCheckbox: (type: 'locked' | 'double' | 'automatic' | 'lockpick' | 'hideUi') => void;
   setInteractDistance: (value: StoreState['interactDistance']) => void;
 }
 
@@ -47,7 +48,7 @@ export const useStore = create<StoreState>((set: SetState<StoreState>) => ({
   doorName: '',
   passcode: '',
   autolockInterval: '',
-  itemFields: [''],
+  itemFields: [{ name: '', metadata: '', remove: false }],
   groupFields: [{ name: '', grade: '' }],
   interactDistance: '',
   lockSound: null,
@@ -57,6 +58,7 @@ export const useStore = create<StoreState>((set: SetState<StoreState>) => ({
     double: false,
     automatic: false,
     lockpick: false,
+    hideUi: false,
   },
 }));
 

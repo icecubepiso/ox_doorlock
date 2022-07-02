@@ -6,16 +6,18 @@ game         'gta5'
 
 --[[ Resource Information ]]--
 name         'ox_doorlock'
-version      '1.0.4'
+version      '1.3.0'
 license      'GPL-3.0-or-later'
 author       'Overextended'
 repository   'https://github.com/overextended/ox_doorlock'
 
 --[[ Manifest ]]--
-shared_script '@ox_lib/init.lua'
+shared_scripts {
+	'@ox_lib/init.lua',
+	'config.lua',
+}
 
 client_scripts {
-	'config.lua',
 	'client/main.lua',
 	'client/utils.lua',
 }
@@ -37,5 +39,5 @@ files {
 
 dependencies {
 	'ox_lib',
-	'qtarget'
+	'qtarget',
 }

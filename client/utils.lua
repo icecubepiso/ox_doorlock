@@ -65,8 +65,18 @@ local function pickLock(entity)
 	pickingLock = false
 end
 
-exports.qtarget:Object({
-	options = {
+local target
+
+do
+	if GetResourceState('qb-target'):find('start') then
+		target = exports['qb-target']
+		rawset(target, 'name', 'qb-target')
+	else
+		target = exports.qtarget
+		rawset(target, 'name', 'qtarget')
+	end
+
+	local options = {
 		{
 			label = locale('pick_lock'),
 			icon = 'fas fa-user-lock',
@@ -76,7 +86,13 @@ exports.qtarget:Object({
 			distance = 1
 		}
 	}
-})
+
+	if target.name == 'qtarget' then
+		target:Object({ options = options })
+	else
+		target:AddGlobalObject({ options = options })
+	end
+end
 
 local tempData = {}
 
@@ -124,10 +140,11 @@ local function parseTempData()
 		maxDistance = tempData.interactDistance or 2,
 		lockSound = tempData.lockSound,
 		unlockSound = tempData.unlockSound,
-		auto = tempData.checkboxes.automatic or nil,
-		state = tempData.checkboxes.locked and 1 or 0,
-		lockpick = tempData.checkboxes.lockpick or nil,
-		doors = tempData.checkboxes.double and true or nil,
+		auto = tempData.checkboxes?.automatic or nil,
+		state = tempData.checkboxes?.locked and 1 or 0,
+		lockpick = tempData.checkboxes?.lockpick or nil,
+		hideUi = tempData.checkboxes?.hideUi or nil,
+		doors = tempData.checkboxes?.double and true or nil,
 		groups = {},
 		items = {},
 	}
@@ -147,15 +164,10 @@ local function parseTempData()
 	for i = 1, #tempData.itemFields do
 		local item = tempData.itemFields[i]
 
-		if item ~= '' then
+		if item?.name then
 			itemSize += 1
+			item.remove = item.remove == true or nil
 			data.items[itemSize] = item
-		end
-	end
-
-	for i = 1, #tempData.itemFields do
-		if tempData.itemFields[i] == '' then
-			tempData.itemFields[i] = nil
 		end
 	end
 
@@ -181,17 +193,21 @@ local function newDoorlock()
 	SetNuiFocus(false, false)
 	table.wipe(tempData)
 
-	exports.qtarget:Object({
-		options = {
-			{
-				label = locale('add_lock'),
-				icon = 'fas fa-file-circle-plus',
-				action = addDoorlock,
-				canInteract = entityIsNotDoor,
-				distance = 10
-			},
-		}
-	})
+	local options = {
+		{
+			label = locale('add_lock'),
+			icon = 'fas fa-file-circle-plus',
+			action = addDoorlock,
+			canInteract = entityIsNotDoor,
+			distance = 10
+		},
+	}
+
+	if target.name == 'qtarget' then
+		target:Object({ options = options })
+	else
+		target:AddGlobalObject({ options = options })
+	end
 
 	if data.doors then
 		repeat Wait(50) until tempData[2]
@@ -204,8 +220,13 @@ local function newDoorlock()
 	end
 
 	TriggerServerEvent('ox_doorlock:editDoorlock', false, data)
-	exports.qtarget:RemoveObject(locale('add_lock'))
 	table.wipe(tempData)
+
+	if target.name == 'qtarget' then
+		target:RemoveObject(locale('add_lock'))
+	else
+		target:RemoveGlobalObject(locale('add_lock'))
+	end
 end
 
 local function parseDoorData(door)
@@ -222,6 +243,7 @@ local function parseDoorData(door)
 			automatic = door.auto,
 			locked = door.state == 1,
 			lockpick = door.lockpick,
+			hideUi = door.hideUi,
 			double = door.doors and true,
 		}
 	}
@@ -273,7 +295,13 @@ end
 
 local function removeTarget(res)
 	if not res or res == 'ox_doorlock' then
-		exports.qtarget:RemoveObject({locale('remove_lock'), locale('edit_lock'), locale('add_lock'), locale('pick_lock')})
+		local options = { locale('remove_lock'), locale('edit_lock'), locale('add_lock'), locale('pick_lock') }
+
+		if target.name == 'qtarget' then
+			target:RemoveObject(options)
+		else
+			target:RemoveGlobalObject(options)
+		end
 	end
 end
 
@@ -284,7 +312,7 @@ RegisterNetEvent('ox_doorlock:triggeredCommand', function(edit)
 		displayTarget = not displayTarget
 
 		if displayTarget then
-			return exports.qtarget:Object({
+			local options = {
 				options = {
 					{
 						label = locale('edit_lock'),
@@ -300,7 +328,13 @@ RegisterNetEvent('ox_doorlock:triggeredCommand', function(edit)
 					},
 				},
 				distance = 10
-			})
+			}
+
+			if target.name == 'qtarget' then
+				return target:Object(options)
+			else
+				return target:AddGlobalObject(options)
+			end
 		end
 
 		removeTarget()

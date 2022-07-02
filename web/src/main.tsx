@@ -15,7 +15,10 @@ debugData<boolean | StoreState>([
       doorName: 'Door name',
       passcode: 'Supersecret123',
       autolockInterval: '300',
-      itemFields: ['mrpd_key', 'lockpick'],
+      itemFields: [
+        { name: 'mrpd_key', metadata: 'office_key', remove: true },
+        { name: 'lockpick' },
+      ],
       groupFields: [
         { name: 'police', grade: '0' },
         { name: 'ambulance', grade: '3' },
@@ -28,6 +31,7 @@ debugData<boolean | StoreState>([
         double: true,
         automatic: true,
         lockpick: true,
+        hideUi: true,
       },
     },
   },

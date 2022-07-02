@@ -1,6 +1,4 @@
-Config = {
-	DoorList = {}
-}
+Config.DoorList = {}
 
 CreateThread(function()
 	local files = {}
@@ -30,13 +28,39 @@ CreateThread(function()
 			if file then
 				load(file)()
 
-				if #Config.DoorList > 0 then
+				if next(Config.DoorList) then
+					local size = 0
 					local query = 'INSERT INTO ox_doorlock (name, data) VALUES (?, ?)'
 					local queries = {}
 
-					for j = 1, #Config.DoorList do
-						local door = Config.DoorList[j]
+					for k, door in pairs(Config.DoorList) do
+						size += 1
 						local double = door.doors
+						local qb = door.objName or (double and double[1].objName)
+
+						if qb then
+							if double then
+								for j = 1, 2 do
+									double[j].objHash = double[j].objName
+									double[j].objHeading = double[j].objYaw or 0
+								end
+							else
+								door.objHash = door.objName
+								door.objHeading = door.objYaw or 0
+							end
+
+							local groups = door.authorizedJobs or {}
+
+							if door.authorizedGangs then
+								for gang, grade in pairs(door.authorizedGangs) do
+									groups[gang] = grade
+								end
+							end
+
+							door.authorizedJobs = next(groups) and groups
+							door.lockpick = door.pickable
+							door.showNUI = not door.hideLabel
+						end
 
 						local data = {
 							auto = door.slides or door.garage,
@@ -47,6 +71,7 @@ CreateThread(function()
 							groups = door.authorizedJobs,
 							items = door.items,
 							lockpick = door.lockpick,
+							hideUi = door.showNUI ~= nil and not door.showNUI or false,
 							lockSound = door.audioLock?.file and door.audioLock.file:gsub('%.ogg', ''),
 							unlockSound = door.audioUnlock?.file and door.audioUnlock.file:gsub('%.ogg', ''),
 							maxDistance = door.maxDistance,
@@ -77,14 +102,15 @@ CreateThread(function()
 							data.coords = double[1].coords - ((double[1].coords - double[2].coords) / 2)
 						end
 
-						queries[j] = {
-							query = query, values = { ('%s %s'):format(fileName, j), json.encode(data) }
+						queries[size] = {
+							query = query, values = { ('%s %s'):format(fileName, k), json.encode(data) }
 						}
 					end
 
 					table.wipe(Config.DoorList)
 
 					if MySQL.Sync.transaction(queries) then
+						print(('Converted %s doors from %s.lua'):format(size, fileName))
 						SaveResourceFile('ox_doorlock', ('convert/%s.lua'):format(fileName), '', -1)
 					end
 				end

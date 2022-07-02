@@ -149,6 +149,8 @@ RegisterNetEvent('ox_doorlock:setState', function(id, state, source, data)
 			Wait(0)
 		end
 
+		if door.state ~= state then return end
+
 		DoorSystemSetDoorState(double[1].hash, door.state, false, false)
 		DoorSystemSetDoorState(double[2].hash, door.state, false, false)
 	else
@@ -157,6 +159,8 @@ RegisterNetEvent('ox_doorlock:setState', function(id, state, source, data)
 			if heading == door.heading then break end
 			Wait(0)
 		end
+
+		if door.state ~= state then return end
 
 		DoorSystemSetDoorState(door.hash, door.state, false, false)
 	end
@@ -234,7 +238,7 @@ CreateThread(function()
 						closestDoor = door
 					end
 
-					if drawSprite then
+					if drawSprite and not door.hideUi then
 						local sprite = drawSprite[door.state]
 
 						if sprite then
@@ -249,10 +253,10 @@ CreateThread(function()
 
 		if closestDoor and closestDoor.distance < closestDoor.maxDistance then
 			if Config.DrawTextUI then
-				if closestDoor.state == 0 and showUI ~= 0 then
+				if closestDoor.state == 0 and showUI ~= 0 and not closestDoor.hideUi then
 					lib.showTextUI(lockDoor)
 					showUI = 0
-				elseif closestDoor.state == 1 and showUI ~= 1 then
+				elseif closestDoor.state == 1 and showUI ~= 1 and not closestDoor.hideUi then
 					lib.showTextUI(unlockDoor)
 					showUI = 1
 				end
