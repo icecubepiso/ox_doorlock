@@ -1,10 +1,11 @@
+---@type table?
 Config.DoorList = {}
 
-CreateThread(function()
+MySQL.ready(function()
 	local files = {}
 	local system = os.getenv('OS')
 	local command = system and system:match('Windows') and 'dir "' or 'ls "'
-	local path = GetResourcePath(GetCurrentResourceName())
+	local path = GetResourcePath(cache.resource)
 	local types = path:gsub('//', '/') .. '/convert'
 	local suffix = command == 'dir "' and '/" /b' or '/"'
 	local dir = io.popen(command .. types .. suffix)
@@ -75,6 +76,7 @@ CreateThread(function()
 							lockSound = door.audioLock?.file and door.audioLock.file:gsub('%.ogg', ''),
 							unlockSound = door.audioUnlock?.file and door.audioUnlock.file:gsub('%.ogg', ''),
 							maxDistance = door.maxDistance,
+							doorRate = door.doorRate,
 							state = door.locked and 1 or 0,
 							passcode = door.passcode,
 							doors = double and {
@@ -109,7 +111,7 @@ CreateThread(function()
 
 					table.wipe(Config.DoorList)
 
-					if MySQL.Sync.transaction(queries) then
+					if MySQL.transaction.await(queries) then
 						print(('Converted %s doors from %s.lua'):format(size, fileName))
 						SaveResourceFile('ox_doorlock', ('convert/%s.lua'):format(fileName), '', -1)
 					end
@@ -117,4 +119,6 @@ CreateThread(function()
 			end
 		end
 	end
+
+	Config.DoorList = nil
 end)

@@ -1,5 +1,7 @@
-local success, msg = lib.checkDependency('ox_lib', '2.4.0')
-if not success then error(msg) end
+do
+	local success, msg = lib.checkDependency('ox_lib', '2.4.0')
+	if not success then error(msg) end
+end
 
 lib.versionCheck('overextended/ox_doorlock')
 lib.locale()
@@ -32,6 +34,7 @@ local function encodeData(door)
 		hideUi = door.hideUi,
 		lockSound = door.lockSound,
 		maxDistance = door.maxDistance,
+		doorRate = door.doorRate,
 		model = door.model,
 		state = door.state,
 		unlockSound = door.unlockSound,
@@ -81,7 +84,7 @@ exports('editDoor', function(id, data)
 			end
 		end
 
-		MySQL.Async.execute('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { door.name, encodeData(door), id })
+		MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { door.name, encodeData(door), id })
 		TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, door)
 	end
 end)
@@ -90,7 +93,7 @@ local sounds do
 	local files = {}
 	local system = os.getenv('OS')
 	local command = system and system:match('Windows') and 'dir "' or 'ls "'
-	local path = GetResourcePath(GetCurrentResourceName())
+	local path = GetResourcePath(cache.resource)
 	local types = path:gsub('//', '/') .. '/web/build/sounds'
 	local suffix = command == 'dir "' and '/" /b' or '/"'
 	local dir = io.popen(command .. types .. suffix)
@@ -143,7 +146,7 @@ local function createDoor(id, door, name)
 		end
 
 		door.items = items
-		MySQL.Async.execute('UPDATE ox_doorlock SET data = ? WHERE id = ?', { encodeData(door), id })
+		MySQL.update('UPDATE ox_doorlock SET data = ? WHERE id = ?', { encodeData(door), id })
 	end
 
 	doors[id] = door
@@ -153,11 +156,27 @@ end
 local isLoaded = false
 
 MySQL.ready(function()
-	local results = MySQL.Sync.fetchAll('SELECT id, name, data FROM ox_doorlock')
+	while Config.DoorList do Wait(100) end
 
-	if results then
-		for i = 1, #results do
-			local door = results[i]
+	local success, result = pcall(MySQL.query.await, 'SELECT id, name, data FROM ox_doorlock')
+
+	if not success then
+		-- because some people can't run sql files
+		success, result = pcall(MySQL.query, [[CREATE TABLE `ox_doorlock` (
+			`id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+			`name` VARCHAR(50) NOT NULL COLLATE 'utf8mb4_unicode_ci',
+			`data` LONGTEXT NOT NULL COLLATE 'utf8mb4_unicode_ci',
+			PRIMARY KEY (`id`) USING BTREE
+		) COLLATE='utf8mb4_unicode_ci' ENGINE=InnoDB; ]])
+
+		if not success then
+			return error(result)
+		end
+
+		print("Created table 'ox_doorlock' in MySQL database.")
+	elseif result then
+		for i = 1, #result do
+			local door = result[i]
 			createDoor(door.id, json.decode(door.data), door.name)
 		end
 	end
@@ -194,11 +213,7 @@ RegisterNetEvent('ox_doorlock:setState', function(id, state, lockpick, passcode)
 		end
 	end
 
-	TriggerClientEvent('ox_lib:notify', source, {
-		type = 'error',
-		icon = 'lock',
-		description = locale('unable_to', state == 0 and locale('unlock') or locale('lock'))
-	})
+    lib.notify(source, { type = 'error', icon = 'lock', description = state == 0 and 'cannot_unlock' or 'cannot_lock' })
 end)
 
 RegisterNetEvent('ox_doorlock:getDoors', function()
@@ -222,15 +237,15 @@ RegisterNetEvent('ox_doorlock:editDoorlock', function(id, data)
 
 		if id then
 			if data then
-				MySQL.Async.execute('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { data.name, encodeData(data), id })
+				MySQL.update('UPDATE ox_doorlock SET name = ?, data = ? WHERE id = ?', { data.name, encodeData(data), id })
 			else
-				MySQL.Async.execute('DELETE FROM ox_doorlock WHERE id = ?', { id })
+				MySQL.update('DELETE FROM ox_doorlock WHERE id = ?', { id })
 			end
 
 			doors[id] = data
 			TriggerClientEvent('ox_doorlock:editDoorlock', -1, id, data)
 		else
-			local insertId = MySQL.Sync.insert('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)', { data.name, encodeData(data) })
+			local insertId = MySQL.insert.await('INSERT INTO ox_doorlock (name, data) VALUES (?, ?)', { data.name, encodeData(data) })
 			local door = createDoor(insertId, data, data.name)
 
 			TriggerClientEvent('ox_doorlock:setState', -1, door.id, door.state, false, door)
